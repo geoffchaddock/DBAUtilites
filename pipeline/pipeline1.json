@@ -1,0 +1,470 @@
+{
+	"name": "pipeline1",
+	"properties": {
+		"activities": [
+			{
+				"name": "LoadDimTables",
+				"type": "ExecuteDataFlow",
+				"dependsOn": [
+					{
+						"activity": "ForEach Csv Merge",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"dataflow": {
+						"referenceName": "DimEmployeePipeline",
+						"type": "DataFlowReference"
+					},
+					"staging": {
+						"linkedService": {
+							"referenceName": "AzureBlobStorage1",
+							"type": "LinkedServiceReference"
+						},
+						"folderPath": "maxminetl"
+					},
+					"compute": {
+						"coreCount": 8,
+						"computeType": "General"
+					},
+					"traceLevel": "Fine"
+				}
+			},
+			{
+				"name": "LoadFactTables",
+				"type": "Script",
+				"dependsOn": [
+					{
+						"activity": "LoadDimTables",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"linkedServiceName": {
+					"referenceName": "hedukwhcodeLS",
+					"type": "LinkedServiceReference"
+				},
+				"typeProperties": {
+					"scripts": [
+						{
+							"type": "Query",
+							"text": "set dateformat dmy \n\n\nINSERT INTO dbo.DimCustomers (AccountNumber, InsertedDate, isLateArriving, ActiveFlag)\nselect \n\tCustomerAccountCode, \n\tgetdate(), \n\t1, \n\t1\nfrom ext.SalesOrdersFactStaging\nleft join DimCustomers on SalesOrdersFactStaging.CustomerAccountCode = DimCustomers.AccountNumber\nwhere DimCustomers.AccountNumber is null\n\n\nSELECT\n    OrderDate,\n\tDimProduct.ProductPK,\n\tDimCustomers.CustomerPK,\n\tDimStores.StorePK,\n\tCASE\n\t\tWHEN DimSalesStaff.SalesStaffPK IS NULL THEN\n\t\t\t9999\n\t\tELSE \n\t\t\tDimSalesStaff.SalesStaffPK\n\t\tEND AS SalesStaffPK,\n    StoreSales,\n    UnitSales,\n\tSalesOrdersFactStaging.SalesPersonCode,\n\tSalesOrdersFactStaging.CustomerAccountCode\ninto #OrdersFactTmp\nfrom ext.SalesOrdersFactStaging\nleft join DimProduct on SalesOrdersFactStaging.ProductCode = DimProduct.ProductCode\nleft join DimCustomers on SalesOrdersFactStaging.CustomerAccountCode = DimCustomers.AccountNumber\nleft join DimStores on SalesOrdersFactStaging.StoreCode = DimStores.Code\nleft join DimSalesStaff on SalesOrdersFactStaging.SalesPersonCode = DimSalesStaff.StaffCode;\n\n\ninsert into [DimSalesStaff] (\n      [StaffCode]\n      ,[StaffName]\n      ,[DepartmentID]\n      ,[InsertedDate]\n      ,[UpdatedDate]\n      ,[ActiveFlag])\nselect\n\tdistinct SalesOrdersFactStaging.SalesPersonCode,\n\t'Unknown',\n\t0,\n\tgetdate(), null, 1\nfrom #OrdersFactTmp \ninner join ext.SalesOrdersFactStaging on #OrdersFactTmp.SalesPersonCode = SalesOrdersFactStaging.SalesPersonCode\nwhere SalesStaffPK = 9999;\n\nupdate #OrdersFactTmp \n\tset SalesStaffPK = DimSalesStaff.SalesStaffPK\nfrom #OrdersFactTmp \ninner join DimSalesStaff on DimSalesStaff.StaffCode = #OrdersFactTmp.SalesPersonCode\nwhere #OrdersFactTmp.SalesStaffPK = 9999;\n\n\nMERGE SalesOrdersFact AS Target\nUSING (\n\tSELECT ProductPK, CustomerPK, StorePK, SalesStaffPK, StoreSales, OrderDate\n\tFROM #OrdersFactTmp\n\tGROUP BY ProductPK, CustomerPK, StorePK, SalesStaffPK, StoreSales, OrderDate\n) AS Source\nON Target.ProductFK = Source.ProductPK AND \n\tTarget.CustomerAccountFK = Source.CustomerPK AND\n\tTarget.StoreFK = Source.StorePK AND\n\tTarget.SalesPersonFK = Source.SalesStaffPK AND\n\tTarget.OrderDate = Source.OrderDate\nWHEN NOT MATCHED BY Target THEN \n  INSERT(ProductFK, CustomerAccountFK, StoreFK, SalesPersonFK, StoreSales, OrderDate) \n  VALUES(Source.ProductPK, \n            Source.CustomerPK, \n            Source.StorePK,\n            Source.SalesStaffPK,\n            Source.StoreSales,\n            Source.OrderDate\n          ) \nWHEN MATCHED THEN  \n\tUPDATE SET Target.StoreSales = Source.StoreSales;\n\n\n\nDROP TABLE #OrdersFactTmp\n\n\n\n\n\n\n"
+						}
+					]
+				}
+			},
+			{
+				"name": "AuditFileProcessComplete",
+				"type": "Script",
+				"dependsOn": [
+					{
+						"activity": "LoadFactTables",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"linkedServiceName": {
+					"referenceName": "OrderProcessingSystem",
+					"type": "LinkedServiceReference"
+				},
+				"typeProperties": {
+					"scripts": [
+						{
+							"type": "Query",
+							"text": "update AuditFilesProcessed set ProcessStatus = 'Completed'\nwhere ProcessStatus  = 'Failed'\n\n"
+						}
+					]
+				}
+			},
+			{
+				"name": "Get File Names",
+				"type": "GetMetadata",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"dataset": {
+						"referenceName": "UploadedCSVFileDS",
+						"type": "DatasetReference"
+					},
+					"fieldList": [
+						"childItems"
+					],
+					"storeSettings": {
+						"type": "AzureBlobFSReadSettings",
+						"recursive": true,
+						"enablePartitionDiscovery": false
+					},
+					"formatSettings": {
+						"type": "DelimitedTextReadSettings"
+					}
+				}
+			},
+			{
+				"name": "ForEach Csv Merge",
+				"type": "ForEach",
+				"dependsOn": [
+					{
+						"activity": "Get File Names",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@activity('Get File Names').output.childItems",
+						"type": "Expression"
+					},
+					"isSequential": false,
+					"activities": [
+						{
+							"name": "Exec AuditCsvFilesLoaded",
+							"type": "SqlServerStoredProcedure",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"storedProcedureName": "[dbo].[AuditCsvFilesLoaded]",
+								"storedProcedureParameters": {
+									"CSVFileName": {
+										"value": {
+											"value": "@item().name",
+											"type": "Expression"
+										},
+										"type": "String"
+									}
+								}
+							},
+							"linkedServiceName": {
+								"referenceName": "OrderProcessingSystem",
+								"type": "LinkedServiceReference"
+							}
+						},
+						{
+							"name": "Merge Import CSV to Orders File",
+							"type": "Copy",
+							"dependsOn": [
+								{
+									"activity": "Exec AuditCsvFilesLoaded",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"source": {
+									"type": "DelimitedTextSource",
+									"storeSettings": {
+										"type": "AzureBlobFSReadSettings",
+										"recursive": true,
+										"wildcardFileName": "*.csv",
+										"enablePartitionDiscovery": false
+									},
+									"formatSettings": {
+										"type": "DelimitedTextReadSettings"
+									}
+								},
+								"sink": {
+									"type": "DelimitedTextSink",
+									"storeSettings": {
+										"type": "AzureBlobFSWriteSettings",
+										"copyBehavior": "MergeFiles"
+									},
+									"formatSettings": {
+										"type": "DelimitedTextWriteSettings",
+										"quoteAllText": true,
+										"fileExtension": ".txt"
+									}
+								},
+								"enableStaging": false,
+								"translator": {
+									"type": "TabularTranslator",
+									"typeConversion": true,
+									"typeConversionSettings": {
+										"allowDataTruncation": true,
+										"treatBooleanAsNumber": false
+									}
+								}
+							},
+							"inputs": [
+								{
+									"referenceName": "UploadedCSVFileDS",
+									"type": "DatasetReference"
+								}
+							],
+							"outputs": [
+								{
+									"referenceName": "OrdersFileCSVDS",
+									"type": "DatasetReference"
+								}
+							]
+						},
+						{
+							"name": "Archive CSV Upload Files",
+							"type": "Copy",
+							"dependsOn": [
+								{
+									"activity": "Merge Import CSV to Orders File",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"source": {
+									"type": "DelimitedTextSource",
+									"storeSettings": {
+										"type": "AzureBlobFSReadSettings",
+										"recursive": true,
+										"wildcardFileName": "*.csv",
+										"enablePartitionDiscovery": false
+									},
+									"formatSettings": {
+										"type": "DelimitedTextReadSettings"
+									}
+								},
+								"sink": {
+									"type": "DelimitedTextSink",
+									"storeSettings": {
+										"type": "AzureBlobFSWriteSettings",
+										"copyBehavior": "PreserveHierarchy"
+									},
+									"formatSettings": {
+										"type": "DelimitedTextWriteSettings",
+										"quoteAllText": true,
+										"fileExtension": ".csv"
+									}
+								},
+								"enableStaging": false,
+								"translator": {
+									"type": "TabularTranslator",
+									"mappings": [
+										{
+											"source": {
+												"name": "OrderDate",
+												"type": "String",
+												"physicalType": "String"
+											},
+											"sink": {
+												"type": "String",
+												"physicalType": "String",
+												"ordinal": 1
+											}
+										},
+										{
+											"source": {
+												"name": "CustomerAccount",
+												"type": "String",
+												"physicalType": "String"
+											},
+											"sink": {
+												"type": "String",
+												"physicalType": "String",
+												"ordinal": 2
+											}
+										},
+										{
+											"source": {
+												"name": "Product",
+												"type": "String",
+												"physicalType": "String"
+											},
+											"sink": {
+												"type": "String",
+												"physicalType": "String",
+												"ordinal": 3
+											}
+										},
+										{
+											"source": {
+												"name": "Store",
+												"type": "String",
+												"physicalType": "String"
+											},
+											"sink": {
+												"type": "String",
+												"physicalType": "String",
+												"ordinal": 4
+											}
+										},
+										{
+											"source": {
+												"name": "Promotion",
+												"type": "String",
+												"physicalType": "String"
+											},
+											"sink": {
+												"type": "String",
+												"physicalType": "String",
+												"ordinal": 5
+											}
+										},
+										{
+											"source": {
+												"name": "SalesPerson",
+												"type": "String",
+												"physicalType": "String"
+											},
+											"sink": {
+												"type": "String",
+												"physicalType": "String",
+												"ordinal": 6
+											}
+										},
+										{
+											"source": {
+												"name": "StoreSales",
+												"type": "String",
+												"physicalType": "String"
+											},
+											"sink": {
+												"type": "String",
+												"physicalType": "String",
+												"ordinal": 7
+											}
+										},
+										{
+											"source": {
+												"name": "UnitSales",
+												"type": "String",
+												"physicalType": "String"
+											},
+											"sink": {
+												"type": "String",
+												"physicalType": "String",
+												"ordinal": 8
+											}
+										}
+									],
+									"typeConversion": true,
+									"typeConversionSettings": {
+										"allowDataTruncation": true,
+										"treatBooleanAsNumber": false
+									}
+								}
+							},
+							"inputs": [
+								{
+									"referenceName": "UploadedCSVFileDS",
+									"type": "DatasetReference"
+								}
+							],
+							"outputs": [
+								{
+									"referenceName": "ArchivedCsv",
+									"type": "DatasetReference"
+								}
+							]
+						}
+					]
+				}
+			},
+			{
+				"name": "Delete Upload CSV Files",
+				"type": "Delete",
+				"dependsOn": [
+					{
+						"activity": "AuditFileProcessComplete",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"dataset": {
+						"referenceName": "UploadedCSVFileDS",
+						"type": "DatasetReference"
+					},
+					"enableLogging": false,
+					"storeSettings": {
+						"type": "AzureBlobFSReadSettings",
+						"recursive": true,
+						"modifiedDatetimeEnd": "2022-10-03T00:00:00.806Z",
+						"wildcardFileName": "*.csv",
+						"enablePartitionDiscovery": false
+					}
+				}
+			}
+		],
+		"parameters": {
+			"OrdersFileName": {
+				"type": "string",
+				"defaultValue": "Orders-12-12-2022.csv"
+			}
+		},
+		"variables": {
+			"AuditPK": {
+				"type": "String"
+			}
+		},
+		"annotations": [],
+		"lastPublishTime": "2022-10-05T11:49:40Z"
+	},
+	"type": "Microsoft.DataFactory/factories/pipelines"
+}

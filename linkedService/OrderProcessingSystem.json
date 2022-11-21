@@ -1,0 +1,18 @@
+{
+	"name": "OrderProcessingSystem",
+	"type": "Microsoft.DataFactory/factories/linkedservices",
+	"properties": {
+		"annotations": [],
+		"type": "AzureSqlDatabase",
+		"typeProperties": {
+			"connectionString": {
+				"type": "AzureKeyVaultSecret",
+				"store": {
+					"referenceName": "MaxMinAKV",
+					"type": "LinkedServiceReference"
+				},
+				"secretName": "OrderProcessingSystemConnStr"
+			}
+		}
+	}
+}

@@ -1,0 +1,18 @@
+{
+	"name": "trigger1",
+	"properties": {
+		"annotations": [],
+		"runtimeState": "Stopped",
+		"pipelines": [],
+		"type": "BlobEventsTrigger",
+		"typeProperties": {
+			"blobPathBeginsWith": "/max-min-manufactoring-dw/blobs/Orders/Drop Folder/",
+			"blobPathEndsWith": ".csv",
+			"ignoreEmptyBlobs": true,
+			"scope": "/subscriptions/fb94e2d7-130c-4c21-9316-68ad17fbe505/resourceGroups/PluralsightDemoRG/providers/Microsoft.Storage/storageAccounts/hedukcoredl",
+			"events": [
+				"Microsoft.Storage.BlobCreated"
+			]
+		}
+	}
+}

@@ -1,0 +1,11 @@
+{
+	"name": "MaxMinAKV",
+	"type": "Microsoft.DataFactory/factories/linkedservices",
+	"properties": {
+		"annotations": [],
+		"type": "AzureKeyVault",
+		"typeProperties": {
+			"baseUrl": "https://hedkvuk.vault.azure.net/"
+		}
+	}
+}

@@ -1,0 +1,23 @@
+{
+	"name": "ArchivedCsv",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "max_min_manufactoring_DL_LS",
+			"type": "LinkedServiceReference"
+		},
+		"annotations": [],
+		"type": "DelimitedText",
+		"typeProperties": {
+			"location": {
+				"type": "AzureBlobFSLocation",
+				"folderPath": "Orders/Archive",
+				"fileSystem": "max-min-manufactoring-dw"
+			},
+			"columnDelimiter": ",",
+			"escapeChar": "\\",
+			"quoteChar": "\""
+		},
+		"schema": []
+	},
+	"type": "Microsoft.DataFactory/factories/datasets"
+}

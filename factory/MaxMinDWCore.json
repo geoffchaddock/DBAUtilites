@@ -1,0 +1,9 @@
+{
+	"name": "MaxMinDWCore",
+	"location": "ukwest",
+	"identity": {
+		"type": "SystemAssigned",
+		"principalId": "0a584ebc-b070-43c9-adbf-f4b867b4194c",
+		"tenantId": "26838705-b8cf-4fb4-a9d3-1a14c2717e5c"
+	}
+}
