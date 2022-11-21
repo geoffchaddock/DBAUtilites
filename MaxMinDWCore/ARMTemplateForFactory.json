@@ -1040,7 +1040,15 @@
 						"frequency": "Day",
 						"interval": 1,
 						"startTime": "2022-11-21T17:05:00Z",
-						"timeZone": "UTC"
+						"timeZone": "UTC",
+						"schedule": {
+							"minutes": [
+								15
+							],
+							"hours": [
+								17
+							]
+						}
 					}
 				}
 			},
