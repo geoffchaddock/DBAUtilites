@@ -1,0 +1,62 @@
+{
+	"name": "AutoScaleSQLDBPL",
+	"properties": {
+		"activities": [
+			{
+				"name": "Run AutoScaleSQLDB",
+				"type": "SqlServerStoredProcedure",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"storedProcedureName": "[dbo].[AutoScaleSQLDB]",
+					"storedProcedureParameters": {
+						"DatabaseName": {
+							"value": {
+								"value": "@pipeline().parameters.DatabaseName",
+								"type": "Expression"
+							},
+							"type": "String"
+						},
+						"EDITION": {
+							"value": {
+								"value": "@pipeline().parameters.Edition",
+								"type": "Expression"
+							},
+							"type": "String"
+						},
+						"SRV_OBJ": {
+							"value": {
+								"value": "@pipeline().parameters.Service",
+								"type": "Expression"
+							},
+							"type": "String"
+						}
+					}
+				},
+				"linkedServiceName": {
+					"referenceName": "DBAUtilitiesLS",
+					"type": "LinkedServiceReference"
+				}
+			}
+		],
+		"parameters": {
+			"DatabaseName": {
+				"type": "string"
+			},
+			"Edition": {
+				"type": "string"
+			},
+			"Service": {
+				"type": "string"
+			}
+		},
+		"annotations": []
+	}
+}
