@@ -1,0 +1,29 @@
+{
+	"name": "UpScale",
+	"properties": {
+		"annotations": [],
+		"runtimeState": "Started",
+		"pipelines": [
+			{
+				"pipelineReference": {
+					"referenceName": "AutoScaleSQLDBPL",
+					"type": "PipelineReference"
+				},
+				"parameters": {
+					"DatabaseName": "AdventureWorksDW2019",
+					"Edition": "Standard",
+					"Service": "S0"
+				}
+			}
+		],
+		"type": "ScheduleTrigger",
+		"typeProperties": {
+			"recurrence": {
+				"frequency": "Day",
+				"interval": 1,
+				"startTime": "2022-11-21T17:05:00Z",
+				"timeZone": "UTC"
+			}
+		}
+	}
+}
