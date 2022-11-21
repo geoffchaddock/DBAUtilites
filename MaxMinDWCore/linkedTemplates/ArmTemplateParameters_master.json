@@ -1,0 +1,48 @@
+{
+	"$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"factoryName": {
+			"value": "MaxMinDWCore"
+		},
+		"AzureBlobStorage1_connectionString": {
+			"value": ""
+		},
+		"DBAUtilitiesLS_connectionString": {
+			"value": ""
+		},
+		"max_min_manufactoring_DL_LS_accountKey": {
+			"value": ""
+		},
+		"MaxMinAKV_properties_typeProperties_baseUrl": {
+			"value": "https://hedkvuk.vault.azure.net/"
+		},
+		"OrderProcessingSystem_properties_typeProperties_connectionString_secretName": {
+			"value": "OrderProcessingSystemConnStr"
+		},
+		"hedukwhcodeLS_properties_typeProperties_connectionString_secretName": {
+			"value": "hedukwhcodeliveConnStr"
+		},
+		"max_min_manufactoring_DL_LS_properties_typeProperties_url": {
+			"value": "https://hedukcoredl.dfs.core.windows.net/"
+		},
+		"UpScale_properties_AutoScaleSQLDBPL_parameters_DatabaseName": {
+			"value": "AdventureWorksDW2019"
+		},
+		"UpScale_properties_AutoScaleSQLDBPL_parameters_Edition": {
+			"value": "Standard"
+		},
+		"UpScale_properties_AutoScaleSQLDBPL_parameters_Service": {
+			"value": "S0"
+		},
+		"trigger1_properties_typeProperties_scope": {
+			"value": "/subscriptions/fb94e2d7-130c-4c21-9316-68ad17fbe505/resourceGroups/PluralsightDemoRG/providers/Microsoft.Storage/storageAccounts/hedukcoredl"
+		},
+		"containerUri": {
+			"value": ""
+		},
+		"containerSasToken": {
+			"value": ""
+		}
+	}
+}

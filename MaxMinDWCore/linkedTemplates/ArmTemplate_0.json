@@ -1,0 +1,1444 @@
+{
+	"$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"factoryName": {
+			"type": "string",
+			"metadata": "Data Factory name",
+			"defaultValue": "MaxMinDWCore"
+		},
+		"AzureBlobStorage1_connectionString": {
+			"type": "secureString",
+			"metadata": "Secure string for 'connectionString' of 'AzureBlobStorage1'"
+		},
+		"DBAUtilitiesLS_connectionString": {
+			"type": "secureString",
+			"metadata": "Secure string for 'connectionString' of 'DBAUtilitiesLS'"
+		},
+		"max_min_manufactoring_DL_LS_accountKey": {
+			"type": "secureString",
+			"metadata": "Secure string for 'accountKey' of 'max_min_manufactoring_DL_LS'"
+		},
+		"MaxMinAKV_properties_typeProperties_baseUrl": {
+			"type": "string",
+			"defaultValue": "https://hedkvuk.vault.azure.net/"
+		},
+		"max_min_manufactoring_DL_LS_properties_typeProperties_url": {
+			"type": "string",
+			"defaultValue": "https://hedukcoredl.dfs.core.windows.net/"
+		},
+		"trigger1_properties_typeProperties_scope": {
+			"type": "string",
+			"defaultValue": "/subscriptions/fb94e2d7-130c-4c21-9316-68ad17fbe505/resourceGroups/PluralsightDemoRG/providers/Microsoft.Storage/storageAccounts/hedukcoredl"
+		},
+		"OrderProcessingSystem_properties_typeProperties_connectionString_secretName": {
+			"type": "string",
+			"defaultValue": "OrderProcessingSystemConnStr"
+		},
+		"hedukwhcodeLS_properties_typeProperties_connectionString_secretName": {
+			"type": "string",
+			"defaultValue": "hedukwhcodeliveConnStr"
+		},
+		"UpScale_properties_AutoScaleSQLDBPL_parameters_DatabaseName": {
+			"type": "string",
+			"defaultValue": "AdventureWorksDW2019"
+		},
+		"UpScale_properties_AutoScaleSQLDBPL_parameters_Edition": {
+			"type": "string",
+			"defaultValue": "Standard"
+		},
+		"UpScale_properties_AutoScaleSQLDBPL_parameters_Service": {
+			"type": "string",
+			"defaultValue": "S0"
+		}
+	},
+	"variables": {
+		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
+	},
+	"resources": [
+		{
+			"name": "[concat(parameters('factoryName'), '/AzureBlobStorage1')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"type": "AzureBlobStorage",
+				"typeProperties": {
+					"connectionString": "[parameters('AzureBlobStorage1_connectionString')]"
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/DBAUtilitiesLS')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"type": "AzureSqlDatabase",
+				"typeProperties": {
+					"connectionString": "[parameters('DBAUtilitiesLS_connectionString')]"
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/MaxMinAKV')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"type": "AzureKeyVault",
+				"typeProperties": {
+					"baseUrl": "[parameters('MaxMinAKV_properties_typeProperties_baseUrl')]"
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/max_min_manufactoring_DL_LS')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"type": "AzureBlobFS",
+				"typeProperties": {
+					"url": "[parameters('max_min_manufactoring_DL_LS_properties_typeProperties_url')]",
+					"accountKey": {
+						"type": "SecureString",
+						"value": "[parameters('max_min_manufactoring_DL_LS_accountKey')]"
+					}
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/trigger1')]",
+			"type": "Microsoft.DataFactory/factories/triggers",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"runtimeState": "Stopped",
+				"pipelines": [],
+				"type": "BlobEventsTrigger",
+				"typeProperties": {
+					"blobPathBeginsWith": "/max-min-manufactoring-dw/blobs/Orders/Drop Folder/",
+					"blobPathEndsWith": ".csv",
+					"ignoreEmptyBlobs": true,
+					"scope": "[parameters('trigger1_properties_typeProperties_scope')]",
+					"events": [
+						"Microsoft.Storage.BlobCreated"
+					]
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/AutoScaleSQLDBPL')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "Run AutoScaleSQLDB",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[[dbo].[AutoScaleSQLDB]",
+							"storedProcedureParameters": {
+								"DatabaseName": {
+									"value": {
+										"value": "@pipeline().parameters.DatabaseName",
+										"type": "Expression"
+									},
+									"type": "String"
+								},
+								"EDITION": {
+									"value": {
+										"value": "@pipeline().parameters.Edition",
+										"type": "Expression"
+									},
+									"type": "String"
+								},
+								"SRV_OBJ": {
+									"value": {
+										"value": "@pipeline().parameters.Service",
+										"type": "Expression"
+									},
+									"type": "String"
+								}
+							}
+						},
+						"linkedServiceName": {
+							"referenceName": "DBAUtilitiesLS",
+							"type": "LinkedServiceReference"
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {},
+					"cancelAfter": {}
+				},
+				"parameters": {
+					"DatabaseName": {
+						"type": "string"
+					},
+					"Edition": {
+						"type": "string"
+					},
+					"Service": {
+						"type": "string"
+					}
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/DBAUtilitiesLS')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ArchivedCsv')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "max_min_manufactoring_DL_LS",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobFSLocation",
+						"folderPath": "Orders/Archive",
+						"fileSystem": "max-min-manufactoring-dw"
+					},
+					"columnDelimiter": ",",
+					"escapeChar": "\\",
+					"quoteChar": "\""
+				},
+				"schema": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/max_min_manufactoring_DL_LS')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/OrdersFileCSVDS')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "max_min_manufactoring_DL_LS",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobFSLocation",
+						"fileName": "Orders.csv",
+						"folderPath": "Orders",
+						"fileSystem": "max-min-manufactoring-dw"
+					},
+					"columnDelimiter": ",",
+					"escapeChar": "\\",
+					"firstRowAsHeader": true,
+					"quoteChar": "\""
+				},
+				"schema": [
+					{
+						"name": "OrderDate",
+						"type": "String"
+					},
+					{
+						"name": "CustomerAccount",
+						"type": "String"
+					},
+					{
+						"name": "Product",
+						"type": "String"
+					},
+					{
+						"name": "Store",
+						"type": "String"
+					},
+					{
+						"name": "Promotion",
+						"type": "String"
+					},
+					{
+						"name": "SalesPerson",
+						"type": "String"
+					},
+					{
+						"name": "StoreSales",
+						"type": "String"
+					},
+					{
+						"name": "UnitSales",
+						"type": "String"
+					}
+				]
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/max_min_manufactoring_DL_LS')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/UploadedCSVFileDS')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "max_min_manufactoring_DL_LS",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobFSLocation",
+						"folderPath": "Orders/Drop Folder",
+						"fileSystem": "max-min-manufactoring-dw"
+					},
+					"columnDelimiter": ",",
+					"escapeChar": "\\",
+					"firstRowAsHeader": true,
+					"quoteChar": "\""
+				},
+				"schema": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/max_min_manufactoring_DL_LS')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/OrderProcessingSystem')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"type": "AzureSqlDatabase",
+				"typeProperties": {
+					"connectionString": {
+						"type": "AzureKeyVaultSecret",
+						"store": {
+							"referenceName": "MaxMinAKV",
+							"type": "LinkedServiceReference"
+						},
+						"secretName": "[parameters('OrderProcessingSystem_properties_typeProperties_connectionString_secretName')]"
+					}
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/MaxMinAKV')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/hedukwhcodeLS')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"type": "AzureSqlDW",
+				"typeProperties": {
+					"connectionString": {
+						"type": "AzureKeyVaultSecret",
+						"store": {
+							"referenceName": "MaxMinAKV",
+							"type": "LinkedServiceReference"
+						},
+						"secretName": "[parameters('hedukwhcodeLS_properties_typeProperties_connectionString_secretName')]"
+					}
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/MaxMinAKV')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/CustomersDS')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "OrderProcessingSystem",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": [
+					{
+						"name": "AccountNumber",
+						"type": "int",
+						"precision": 10
+					},
+					{
+						"name": "FirstName",
+						"type": "nvarchar"
+					},
+					{
+						"name": "MiddleInitial",
+						"type": "nchar"
+					},
+					{
+						"name": "LastName",
+						"type": "nvarchar"
+					},
+					{
+						"name": "Address",
+						"type": "nvarchar"
+					},
+					{
+						"name": "City",
+						"type": "nvarchar"
+					},
+					{
+						"name": "State",
+						"type": "nchar"
+					},
+					{
+						"name": "ZipCode",
+						"type": "nchar"
+					},
+					{
+						"name": "NumberOfCarsOwned",
+						"type": "smallint",
+						"precision": 5
+					},
+					{
+						"name": "HomeOwnerFlag",
+						"type": "char"
+					},
+					{
+						"name": "Married",
+						"type": "char"
+					},
+					{
+						"name": "NumberOfChildren",
+						"type": "smallint",
+						"precision": 5
+					}
+				],
+				"typeProperties": {
+					"schema": "dbo",
+					"table": "Customers"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/OrderProcessingSystem')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/DimCustomersDS')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "hedukwhcodeLS",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "AzureSqlDWTable",
+				"schema": [
+					{
+						"name": "CustomerPK",
+						"type": "int",
+						"precision": 10
+					},
+					{
+						"name": "AccountNumber",
+						"type": "int",
+						"precision": 10
+					},
+					{
+						"name": "FirstName",
+						"type": "nvarchar"
+					},
+					{
+						"name": "MiddleInitial",
+						"type": "nchar"
+					},
+					{
+						"name": "LastName",
+						"type": "nvarchar"
+					},
+					{
+						"name": "Address",
+						"type": "nvarchar"
+					},
+					{
+						"name": "City",
+						"type": "nvarchar"
+					},
+					{
+						"name": "State",
+						"type": "nchar"
+					},
+					{
+						"name": "ZipCode",
+						"type": "nchar"
+					},
+					{
+						"name": "NumberOfCarsOwned",
+						"type": "smallint",
+						"precision": 5
+					},
+					{
+						"name": "HomeOwnerFlag",
+						"type": "char"
+					},
+					{
+						"name": "Married",
+						"type": "char"
+					},
+					{
+						"name": "NumberOfChildren",
+						"type": "smallint",
+						"precision": 5
+					},
+					{
+						"name": "InsertedDate",
+						"type": "smalldatetime",
+						"precision": 16,
+						"scale": 0
+					},
+					{
+						"name": "UpdatedDate",
+						"type": "smalldatetime",
+						"precision": 16,
+						"scale": 0
+					},
+					{
+						"name": "ActiveFlag",
+						"type": "int",
+						"precision": 10
+					},
+					{
+						"name": "isLateArriving",
+						"type": "bit"
+					}
+				],
+				"typeProperties": {
+					"schema": "dbo",
+					"table": "DimCustomers"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/hedukwhcodeLS')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/UpScale')]",
+			"type": "Microsoft.DataFactory/factories/triggers",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"runtimeState": "Started",
+				"pipelines": [
+					{
+						"pipelineReference": {
+							"referenceName": "AutoScaleSQLDBPL",
+							"type": "PipelineReference"
+						},
+						"parameters": {
+							"DatabaseName": "[parameters('UpScale_properties_AutoScaleSQLDBPL_parameters_DatabaseName')]",
+							"Edition": "[parameters('UpScale_properties_AutoScaleSQLDBPL_parameters_Edition')]",
+							"Service": "[parameters('UpScale_properties_AutoScaleSQLDBPL_parameters_Service')]"
+						}
+					}
+				],
+				"type": "ScheduleTrigger",
+				"typeProperties": {
+					"recurrence": {
+						"frequency": "Day",
+						"interval": 1,
+						"startTime": "2022-11-21T17:05:00Z",
+						"timeZone": "UTC"
+					}
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/pipelines/AutoScaleSQLDBPL')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/DimEmployeePipeline')]",
+			"type": "Microsoft.DataFactory/factories/dataflows",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"type": "MappingDataFlow",
+				"typeProperties": {
+					"sources": [
+						{
+							"dataset": {
+								"referenceName": "CustomersDS",
+								"type": "DatasetReference"
+							},
+							"name": "Customers",
+							"description": " Source employees file, changes every day"
+						},
+						{
+							"dataset": {
+								"referenceName": "DimCustomersDS",
+								"type": "DatasetReference"
+							},
+							"name": "DimCustomers",
+							"description": "Current rows in DimEmployees DW table"
+						}
+					],
+					"sinks": [
+						{
+							"dataset": {
+								"referenceName": "DimCustomersDS",
+								"type": "DatasetReference"
+							},
+							"name": "InsertNewRow"
+						},
+						{
+							"dataset": {
+								"referenceName": "DimCustomersDS",
+								"type": "DatasetReference"
+							},
+							"name": "ArchiveOldRow"
+						},
+						{
+							"dataset": {
+								"referenceName": "DimCustomersDS",
+								"type": "DatasetReference"
+							},
+							"name": "InsertNewRecs",
+							"rejectedDataLinkedService": {
+								"referenceName": "AzureBlobStorage1",
+								"type": "LinkedServiceReference"
+							}
+						}
+					],
+					"transformations": [
+						{
+							"name": "TypeConversions"
+						},
+						{
+							"name": "TypeConversionsAndSetAttrs"
+						},
+						{
+							"name": "LookupIDs"
+						},
+						{
+							"name": "ConditionalSplit1"
+						},
+						{
+							"name": "checkForChanges"
+						},
+						{
+							"name": "SetAttrsForNew"
+						},
+						{
+							"name": "SetAttrsInactive",
+							"description": "make iscurrent 0"
+						},
+						{
+							"name": "SetAttrsUpdate"
+						},
+						{
+							"name": "NormNames"
+						},
+						{
+							"name": "InactiveFields"
+						},
+						{
+							"name": "ArchiveCustomerRec"
+						},
+						{
+							"name": "NullFilter",
+							"description": "Filter out NULLs from source file"
+						},
+						{
+							"name": "NameNorm2"
+						},
+						{
+							"name": "filterOnlyActiveRows"
+						}
+					],
+					"scriptLines": [
+						"source(output(",
+						"          AccountNumber as integer,",
+						"          FirstName as string,",
+						"          MiddleInitial as string,",
+						"          LastName as string,",
+						"          Address as string,",
+						"          City as string,",
+						"          State as string,",
+						"          ZipCode as string,",
+						"          NumberOfCarsOwned as integer,",
+						"          HomeOwnerFlag as string,",
+						"          Married as string,",
+						"          NumberOfChildren as integer",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     isolationLevel: 'READ_UNCOMMITTED',",
+						"     format: 'table') ~> Customers",
+						"source(output(",
+						"          CustomerPK as integer,",
+						"          AccountNumber as integer,",
+						"          FirstName as string,",
+						"          MiddleInitial as string,",
+						"          LastName as string,",
+						"          Address as string,",
+						"          City as string,",
+						"          State as string,",
+						"          ZipCode as string,",
+						"          NumberOfCarsOwned as integer,",
+						"          HomeOwnerFlag as string,",
+						"          Married as string,",
+						"          NumberOfChildren as integer,",
+						"          InsertedDate as timestamp,",
+						"          UpdatedDate as timestamp,",
+						"          ActiveFlag as integer,",
+						"          isLateArriving as boolean",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     isolationLevel: 'READ_UNCOMMITTED',",
+						"     format: 'table',",
+						"     staged: true) ~> DimCustomers",
+						"DimCustomers derive(AccountNumber = toInteger(AccountNumber),",
+						"          CustomerPK = toInteger(CustomerPK)) ~> TypeConversions",
+						"NullFilter derive(AccountNumber = toInteger(AccountNumber),",
+						"          NumberOfCarsOwned = toInteger(NumberOfCarsOwned),",
+						"          NumberOfChildren = toInteger(NumberOfChildren)) ~> TypeConversionsAndSetAttrs",
+						"TypeConversionsAndSetAttrs, filterOnlyActiveRows lookup(TypeConversionsAndSetAttrs@AccountNumber == TypeConversions@AccountNumber,",
+						"     multiple: true,",
+						"     broadcast: 'auto')~> LookupIDs",
+						"NormNames split(isNull(iscurrent),",
+						"     disjoint: false) ~> ConditionalSplit1@(NewRow, CheckForUpdates)",
+						"NameNorm2, TypeConversions exists((toInteger(NameNorm2@AccountNumber) == toInteger(TypeConversions@AccountNumber)) \r",
+						"&& \r",
+						"(\r",
+						"   (ActiveFlag == 1) \r",
+						"   &&\r",
+						"   (\r",
+						"      (NameNorm2@NumberOfCarsOwned != DimCustomers@NumberOfCarsOwned) || \r",
+						"      (NameNorm2@NumberOfChildren != DimCustomers@NumberOfChildren) ||\r",
+						"      (NameNorm2@Married != DimCustomers@Married) || \r",
+						"      (NameNorm2@Address != DimCustomers@Address)\r",
+						"   )\r",
+						") \r",
+						"|| \r",
+						"(\r",
+						"   (toInteger(NameNorm2@AccountNumber) == toInteger(TypeConversions@AccountNumber))  \r",
+						"   &&\r",
+						"   (\r",
+						"      (isLateArriving == true() && ActiveFlag == 1) \r",
+						"   )\r",
+						"),",
+						"     negate:false,",
+						"     broadcast: 'auto')~> checkForChanges",
+						"ConditionalSplit1@NewRow derive(iscurrent = 1,",
+						"          InsertedDate = currentTimestamp(),",
+						"          isLateArriving = 0) ~> SetAttrsForNew",
+						"checkForChanges derive(iscurrent = 0,",
+						"          UpdatedDate = currentTimestamp()) ~> SetAttrsInactive",
+						"checkForChanges derive(iscurrent = 1,",
+						"          isLateArriving = 0) ~> SetAttrsUpdate",
+						"LookupIDs select(mapColumn(",
+						"          AccountNumber = TypeConversionsAndSetAttrs@AccountNumber,",
+						"          FirstName = Customers@FirstName,",
+						"          MiddleName = Customers@MiddleInitial,",
+						"          LastName = Customers@LastName,",
+						"          Address = Customers@Address,",
+						"          City = Customers@City,",
+						"          State = Customers@State,",
+						"          ZipCode = Customers@ZipCode,",
+						"          NumberOfCarsOwned = TypeConversionsAndSetAttrs@NumberOfCarsOwned,",
+						"          HomeOwnerFlag = Customers@HomeOwnerFlag,",
+						"          NumberOfChildren = TypeConversionsAndSetAttrs@NumberOfChildren,",
+						"          Married = DimCustomers@Married,",
+						"          iscurrent = ActiveFlag,",
+						"          InsertedDate",
+						"     ),",
+						"     skipDuplicateMapInputs: false,",
+						"     skipDuplicateMapOutputs: false) ~> NormNames",
+						"SetAttrsInactive select(mapColumn(",
+						"          AccountNumber,",
+						"          iscurrent,",
+						"          UpdatedDate",
+						"     ),",
+						"     skipDuplicateMapInputs: false,",
+						"     skipDuplicateMapOutputs: false) ~> InactiveFields",
+						"InactiveFields alterRow(updateIf(true())) ~> ArchiveCustomerRec",
+						"Customers filter(!isNull(AccountNumber)) ~> NullFilter",
+						"ConditionalSplit1@CheckForUpdates select(mapColumn(",
+						"          AccountNumber,",
+						"          FirstName,",
+						"          MiddleName,",
+						"          LastName,",
+						"          Address,",
+						"          City,",
+						"          State,",
+						"          ZipCode,",
+						"          NumberOfCarsOwned,",
+						"          HomeOwnerFlag,",
+						"          NumberOfChildren,",
+						"          Married,",
+						"          iscurrent,",
+						"          InsertedDate",
+						"     ),",
+						"     skipDuplicateMapInputs: false,",
+						"     skipDuplicateMapOutputs: false) ~> NameNorm2",
+						"TypeConversions filter(ActiveFlag == 1) ~> filterOnlyActiveRows",
+						"SetAttrsUpdate sink(allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     input(",
+						"          CustomerPK as integer,",
+						"          AccountNumber as integer,",
+						"          FirstName as string,",
+						"          MiddleInitial as string,",
+						"          LastName as string,",
+						"          Address as string,",
+						"          City as string,",
+						"          State as string,",
+						"          ZipCode as string,",
+						"          NumberOfCarsOwned as integer,",
+						"          HomeOwnerFlag as string,",
+						"          Married as string,",
+						"          NumberOfChildren as integer,",
+						"          InsertedDate as timestamp,",
+						"          UpdatedDate as timestamp,",
+						"          ActiveFlag as integer,",
+						"          isLateArriving as boolean",
+						"     ),",
+						"     deletable:false,",
+						"     insertable:true,",
+						"     updateable:false,",
+						"     upsertable:false,",
+						"     format: 'table',",
+						"     staged: true,",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true,",
+						"     saveOrder: 3,",
+						"     errorHandlingOption: 'stopOnFirstError',",
+						"     mapColumn(",
+						"          AccountNumber,",
+						"          FirstName,",
+						"          MiddleInitial = MiddleName,",
+						"          LastName,",
+						"          Address,",
+						"          City,",
+						"          State,",
+						"          ZipCode,",
+						"          NumberOfCarsOwned,",
+						"          HomeOwnerFlag,",
+						"          Married,",
+						"          NumberOfChildren,",
+						"          InsertedDate,",
+						"          ActiveFlag = iscurrent,",
+						"          isLateArriving",
+						"     ),",
+						"     partitionBy('roundRobin', 4)) ~> InsertNewRow",
+						"ArchiveCustomerRec sink(allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     input(",
+						"          CustomerPK as integer,",
+						"          AccountNumber as integer,",
+						"          FirstName as string,",
+						"          MiddleInitial as string,",
+						"          LastName as string,",
+						"          Address as string,",
+						"          City as string,",
+						"          State as string,",
+						"          ZipCode as string,",
+						"          NumberOfCarsOwned as integer,",
+						"          HomeOwnerFlag as string,",
+						"          Married as string,",
+						"          NumberOfChildren as integer,",
+						"          InsertedDate as timestamp,",
+						"          UpdatedDate as timestamp,",
+						"          ActiveFlag as integer,",
+						"          isLateArriving as boolean",
+						"     ),",
+						"     deletable:false,",
+						"     insertable:false,",
+						"     updateable:true,",
+						"     upsertable:false,",
+						"     keys:['AccountNumber'],",
+						"     format: 'table',",
+						"     staged: true,",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true,",
+						"     saveOrder: 2,",
+						"     errorHandlingOption: 'stopOnFirstError',",
+						"     mapColumn(",
+						"          AccountNumber,",
+						"          UpdatedDate,",
+						"          ActiveFlag = iscurrent",
+						"     ),",
+						"     partitionBy('roundRobin', 4)) ~> ArchiveOldRow",
+						"SetAttrsForNew sink(allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     input(",
+						"          CustomerPK as integer,",
+						"          AccountNumber as integer,",
+						"          FirstName as string,",
+						"          MiddleInitial as string,",
+						"          LastName as string,",
+						"          Address as string,",
+						"          City as string,",
+						"          State as string,",
+						"          ZipCode as string,",
+						"          NumberOfCarsOwned as integer,",
+						"          HomeOwnerFlag as string,",
+						"          Married as string,",
+						"          NumberOfChildren as integer,",
+						"          InsertedDate as timestamp,",
+						"          UpdatedDate as timestamp,",
+						"          ActiveFlag as integer,",
+						"          isLateArriving as boolean",
+						"     ),",
+						"     deletable:false,",
+						"     insertable:true,",
+						"     updateable:false,",
+						"     upsertable:false,",
+						"     format: 'table',",
+						"     staged: true,",
+						"     allowCopyCommand: true,",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true,",
+						"     saveOrder: 1,",
+						"     errorHandlingOption: 'stopOnFirstError',",
+						"     mapColumn(",
+						"          AccountNumber,",
+						"          FirstName,",
+						"          LastName,",
+						"          Address,",
+						"          City,",
+						"          State,",
+						"          ZipCode,",
+						"          NumberOfCarsOwned,",
+						"          HomeOwnerFlag,",
+						"          Married,",
+						"          NumberOfChildren,",
+						"          InsertedDate,",
+						"          isLateArriving = AccountNumber,",
+						"          ActiveFlag = iscurrent,",
+						"          isLateArriving",
+						"     )) ~> InsertNewRecs"
+					]
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/CustomersDS')]",
+				"[concat(variables('factoryId'), '/datasets/DimCustomersDS')]",
+				"[concat(variables('factoryId'), '/linkedServices/AzureBlobStorage1')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/pipeline1')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "LoadDimTables",
+						"type": "ExecuteDataFlow",
+						"dependsOn": [
+							{
+								"activity": "ForEach Csv Merge",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataflow": {
+								"referenceName": "DimEmployeePipeline",
+								"type": "DataFlowReference",
+								"parameters": {},
+								"datasetParameters": {
+									"Customers": {},
+									"DimCustomers": {},
+									"InsertNewRow": {},
+									"ArchiveOldRow": {},
+									"InsertNewRecs": {}
+								}
+							},
+							"staging": {
+								"linkedService": {
+									"referenceName": "AzureBlobStorage1",
+									"type": "LinkedServiceReference"
+								},
+								"folderPath": "maxminetl"
+							},
+							"compute": {
+								"coreCount": 8,
+								"computeType": "General"
+							},
+							"traceLevel": "Fine"
+						}
+					},
+					{
+						"name": "LoadFactTables",
+						"type": "Script",
+						"dependsOn": [
+							{
+								"activity": "LoadDimTables",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"linkedServiceName": {
+							"referenceName": "hedukwhcodeLS",
+							"type": "LinkedServiceReference"
+						},
+						"typeProperties": {
+							"scripts": [
+								{
+									"type": "Query",
+									"text": "set dateformat dmy \n\n\nINSERT INTO dbo.DimCustomers (AccountNumber, InsertedDate, isLateArriving, ActiveFlag)\nselect \n\tCustomerAccountCode, \n\tgetdate(), \n\t1, \n\t1\nfrom ext.SalesOrdersFactStaging\nleft join DimCustomers on SalesOrdersFactStaging.CustomerAccountCode = DimCustomers.AccountNumber\nwhere DimCustomers.AccountNumber is null\n\n\nSELECT\n    OrderDate,\n\tDimProduct.ProductPK,\n\tDimCustomers.CustomerPK,\n\tDimStores.StorePK,\n\tCASE\n\t\tWHEN DimSalesStaff.SalesStaffPK IS NULL THEN\n\t\t\t9999\n\t\tELSE \n\t\t\tDimSalesStaff.SalesStaffPK\n\t\tEND AS SalesStaffPK,\n    StoreSales,\n    UnitSales,\n\tSalesOrdersFactStaging.SalesPersonCode,\n\tSalesOrdersFactStaging.CustomerAccountCode\ninto #OrdersFactTmp\nfrom ext.SalesOrdersFactStaging\nleft join DimProduct on SalesOrdersFactStaging.ProductCode = DimProduct.ProductCode\nleft join DimCustomers on SalesOrdersFactStaging.CustomerAccountCode = DimCustomers.AccountNumber\nleft join DimStores on SalesOrdersFactStaging.StoreCode = DimStores.Code\nleft join DimSalesStaff on SalesOrdersFactStaging.SalesPersonCode = DimSalesStaff.StaffCode;\n\n\ninsert into [DimSalesStaff] (\n      [StaffCode]\n      ,[StaffName]\n      ,[DepartmentID]\n      ,[InsertedDate]\n      ,[UpdatedDate]\n      ,[ActiveFlag])\nselect\n\tdistinct SalesOrdersFactStaging.SalesPersonCode,\n\t'Unknown',\n\t0,\n\tgetdate(), null, 1\nfrom #OrdersFactTmp \ninner join ext.SalesOrdersFactStaging on #OrdersFactTmp.SalesPersonCode = SalesOrdersFactStaging.SalesPersonCode\nwhere SalesStaffPK = 9999;\n\nupdate #OrdersFactTmp \n\tset SalesStaffPK = DimSalesStaff.SalesStaffPK\nfrom #OrdersFactTmp \ninner join DimSalesStaff on DimSalesStaff.StaffCode = #OrdersFactTmp.SalesPersonCode\nwhere #OrdersFactTmp.SalesStaffPK = 9999;\n\n\nMERGE SalesOrdersFact AS Target\nUSING (\n\tSELECT ProductPK, CustomerPK, StorePK, SalesStaffPK, StoreSales, OrderDate\n\tFROM #OrdersFactTmp\n\tGROUP BY ProductPK, CustomerPK, StorePK, SalesStaffPK, StoreSales, OrderDate\n) AS Source\nON Target.ProductFK = Source.ProductPK AND \n\tTarget.CustomerAccountFK = Source.CustomerPK AND\n\tTarget.StoreFK = Source.StorePK AND\n\tTarget.SalesPersonFK = Source.SalesStaffPK AND\n\tTarget.OrderDate = Source.OrderDate\nWHEN NOT MATCHED BY Target THEN \n  INSERT(ProductFK, CustomerAccountFK, StoreFK, SalesPersonFK, StoreSales, OrderDate) \n  VALUES(Source.ProductPK, \n            Source.CustomerPK, \n            Source.StorePK,\n            Source.SalesStaffPK,\n            Source.StoreSales,\n            Source.OrderDate\n          ) \nWHEN MATCHED THEN  \n\tUPDATE SET Target.StoreSales = Source.StoreSales;\n\n\n\nDROP TABLE #OrdersFactTmp\n\n\n\n\n\n\n"
+								}
+							]
+						}
+					},
+					{
+						"name": "AuditFileProcessComplete",
+						"type": "Script",
+						"dependsOn": [
+							{
+								"activity": "LoadFactTables",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"linkedServiceName": {
+							"referenceName": "OrderProcessingSystem",
+							"type": "LinkedServiceReference"
+						},
+						"typeProperties": {
+							"scripts": [
+								{
+									"type": "Query",
+									"text": "update AuditFilesProcessed set ProcessStatus = 'Completed'\nwhere ProcessStatus  = 'Failed'\n\n"
+								}
+							]
+						}
+					},
+					{
+						"name": "Get File Names",
+						"type": "GetMetadata",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataset": {
+								"referenceName": "UploadedCSVFileDS",
+								"type": "DatasetReference",
+								"parameters": {}
+							},
+							"fieldList": [
+								"childItems"
+							],
+							"storeSettings": {
+								"type": "AzureBlobFSReadSettings",
+								"recursive": true,
+								"enablePartitionDiscovery": false
+							},
+							"formatSettings": {
+								"type": "DelimitedTextReadSettings"
+							}
+						}
+					},
+					{
+						"name": "ForEach Csv Merge",
+						"type": "ForEach",
+						"dependsOn": [
+							{
+								"activity": "Get File Names",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('Get File Names').output.childItems",
+								"type": "Expression"
+							},
+							"isSequential": false,
+							"activities": [
+								{
+									"name": "Exec AuditCsvFilesLoaded",
+									"type": "SqlServerStoredProcedure",
+									"dependsOn": [],
+									"policy": {
+										"timeout": "0.12:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"storedProcedureName": "[[dbo].[AuditCsvFilesLoaded]",
+										"storedProcedureParameters": {
+											"CSVFileName": {
+												"value": {
+													"value": "@item().name",
+													"type": "Expression"
+												},
+												"type": "String"
+											}
+										}
+									},
+									"linkedServiceName": {
+										"referenceName": "OrderProcessingSystem",
+										"type": "LinkedServiceReference"
+									}
+								},
+								{
+									"name": "Merge Import CSV to Orders File",
+									"type": "Copy",
+									"dependsOn": [
+										{
+											"activity": "Exec AuditCsvFilesLoaded",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"policy": {
+										"timeout": "0.12:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"source": {
+											"type": "DelimitedTextSource",
+											"storeSettings": {
+												"type": "AzureBlobFSReadSettings",
+												"recursive": true,
+												"wildcardFileName": "*.csv",
+												"enablePartitionDiscovery": false
+											},
+											"formatSettings": {
+												"type": "DelimitedTextReadSettings"
+											}
+										},
+										"sink": {
+											"type": "DelimitedTextSink",
+											"storeSettings": {
+												"type": "AzureBlobFSWriteSettings",
+												"copyBehavior": "MergeFiles"
+											},
+											"formatSettings": {
+												"type": "DelimitedTextWriteSettings",
+												"quoteAllText": true,
+												"fileExtension": ".txt"
+											}
+										},
+										"enableStaging": false,
+										"translator": {
+											"type": "TabularTranslator",
+											"typeConversion": true,
+											"typeConversionSettings": {
+												"allowDataTruncation": true,
+												"treatBooleanAsNumber": false
+											}
+										}
+									},
+									"inputs": [
+										{
+											"referenceName": "UploadedCSVFileDS",
+											"type": "DatasetReference",
+											"parameters": {}
+										}
+									],
+									"outputs": [
+										{
+											"referenceName": "OrdersFileCSVDS",
+											"type": "DatasetReference",
+											"parameters": {}
+										}
+									]
+								},
+								{
+									"name": "Archive CSV Upload Files",
+									"type": "Copy",
+									"dependsOn": [
+										{
+											"activity": "Merge Import CSV to Orders File",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"policy": {
+										"timeout": "0.12:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"source": {
+											"type": "DelimitedTextSource",
+											"storeSettings": {
+												"type": "AzureBlobFSReadSettings",
+												"recursive": true,
+												"wildcardFileName": "*.csv",
+												"enablePartitionDiscovery": false
+											},
+											"formatSettings": {
+												"type": "DelimitedTextReadSettings"
+											}
+										},
+										"sink": {
+											"type": "DelimitedTextSink",
+											"storeSettings": {
+												"type": "AzureBlobFSWriteSettings",
+												"copyBehavior": "PreserveHierarchy"
+											},
+											"formatSettings": {
+												"type": "DelimitedTextWriteSettings",
+												"quoteAllText": true,
+												"fileExtension": ".csv"
+											}
+										},
+										"enableStaging": false,
+										"translator": {
+											"type": "TabularTranslator",
+											"mappings": [
+												{
+													"source": {
+														"name": "OrderDate",
+														"type": "String",
+														"physicalType": "String"
+													},
+													"sink": {
+														"type": "String",
+														"physicalType": "String",
+														"ordinal": 1
+													}
+												},
+												{
+													"source": {
+														"name": "CustomerAccount",
+														"type": "String",
+														"physicalType": "String"
+													},
+													"sink": {
+														"type": "String",
+														"physicalType": "String",
+														"ordinal": 2
+													}
+												},
+												{
+													"source": {
+														"name": "Product",
+														"type": "String",
+														"physicalType": "String"
+													},
+													"sink": {
+														"type": "String",
+														"physicalType": "String",
+														"ordinal": 3
+													}
+												},
+												{
+													"source": {
+														"name": "Store",
+														"type": "String",
+														"physicalType": "String"
+													},
+													"sink": {
+														"type": "String",
+														"physicalType": "String",
+														"ordinal": 4
+													}
+												},
+												{
+													"source": {
+														"name": "Promotion",
+														"type": "String",
+														"physicalType": "String"
+													},
+													"sink": {
+														"type": "String",
+														"physicalType": "String",
+														"ordinal": 5
+													}
+												},
+												{
+													"source": {
+														"name": "SalesPerson",
+														"type": "String",
+														"physicalType": "String"
+													},
+													"sink": {
+														"type": "String",
+														"physicalType": "String",
+														"ordinal": 6
+													}
+												},
+												{
+													"source": {
+														"name": "StoreSales",
+														"type": "String",
+														"physicalType": "String"
+													},
+													"sink": {
+														"type": "String",
+														"physicalType": "String",
+														"ordinal": 7
+													}
+												},
+												{
+													"source": {
+														"name": "UnitSales",
+														"type": "String",
+														"physicalType": "String"
+													},
+													"sink": {
+														"type": "String",
+														"physicalType": "String",
+														"ordinal": 8
+													}
+												}
+											],
+											"typeConversion": true,
+											"typeConversionSettings": {
+												"allowDataTruncation": true,
+												"treatBooleanAsNumber": false
+											}
+										}
+									},
+									"inputs": [
+										{
+											"referenceName": "UploadedCSVFileDS",
+											"type": "DatasetReference",
+											"parameters": {}
+										}
+									],
+									"outputs": [
+										{
+											"referenceName": "ArchivedCsv",
+											"type": "DatasetReference",
+											"parameters": {}
+										}
+									]
+								}
+							]
+						}
+					},
+					{
+						"name": "Delete Upload CSV Files",
+						"type": "Delete",
+						"dependsOn": [
+							{
+								"activity": "AuditFileProcessComplete",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataset": {
+								"referenceName": "UploadedCSVFileDS",
+								"type": "DatasetReference",
+								"parameters": {}
+							},
+							"enableLogging": false,
+							"storeSettings": {
+								"type": "AzureBlobFSReadSettings",
+								"recursive": true,
+								"modifiedDatetimeEnd": "2022-10-03T00:00:00.806Z",
+								"wildcardFileName": "*.csv",
+								"enablePartitionDiscovery": false
+							}
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {},
+					"cancelAfter": {}
+				},
+				"parameters": {
+					"OrdersFileName": {
+						"type": "string",
+						"defaultValue": "Orders-12-12-2022.csv"
+					}
+				},
+				"variables": {
+					"AuditPK": {
+						"type": "String"
+					}
+				},
+				"annotations": [],
+				"lastPublishTime": "2022-10-05T11:49:40Z"
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/dataflows/DimEmployeePipeline')]",
+				"[concat(variables('factoryId'), '/linkedServices/AzureBlobStorage1')]",
+				"[concat(variables('factoryId'), '/linkedServices/hedukwhcodeLS')]",
+				"[concat(variables('factoryId'), '/linkedServices/OrderProcessingSystem')]",
+				"[concat(variables('factoryId'), '/datasets/UploadedCSVFileDS')]",
+				"[concat(variables('factoryId'), '/datasets/OrdersFileCSVDS')]",
+				"[concat(variables('factoryId'), '/datasets/ArchivedCsv')]"
+			]
+		}
+	]
+}
